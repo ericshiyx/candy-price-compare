@@ -8,7 +8,13 @@ const productRoutes = require('./routes/productRoutes');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',  // Local development
+    'https://candycompare.netlify.app/'  // Your Netlify domain
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 // Log all requests
