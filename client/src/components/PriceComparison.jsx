@@ -18,26 +18,26 @@ const PriceComparison = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
+        const sortedProducts = response.data.sort((a, b) => a.sequence - b.sequence);
+        setProducts(sortedProducts);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        setLoading(false);
+      }
+    };
+
     fetchProducts();
   }, []);
 
-  const fetchProducts = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/products');
-      const sortedProducts = response.data.sort((a, b) => a.sequence - b.sequence);
-      setProducts(sortedProducts);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      setLoading(false);
-    }
-  };
-
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/products/${id}`);
+      await axios.delete(`${process.env.REACT_APP_API_URL}/api/products/${id}`);
       // After successful deletion, fetch the updated list
-      const response = await axios.get('http://localhost:5000/api/products');
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
       setProducts(response.data);
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -54,7 +54,7 @@ const PriceComparison = () => {
     setProducts(newProducts);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/products/update-sequence', {
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products/update-sequence`, {
         products: newProducts
       });
       setProducts(response.data);
