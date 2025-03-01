@@ -27,19 +27,8 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
     }
     setLoading(true);
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products/compare-price`, {
-        name: formData.name,
-        vendor1Url: formData.vendor1Url,
-        vendor2Url: formData.vendor2Url
-      });
-      setFormData({
-        name: '',
-        vendor1Url: '',
-        vendor2Url: '',
-        vendor1Price: '',
-        vendor2Price: '',
-        imageUrl: ''
-      });
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products`, formData);
+      console.log('Product added:', response.data);
       const responseData = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
       onProductAdded(responseData.data);
     } catch (error) {
@@ -49,6 +38,7 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
   };
 
   const handleRefreshPrices = async () => {
+    console.log('Making request to refresh prices...');
     try {
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products/refresh-prices`);
       console.log('Prices refreshed:', response.data);
