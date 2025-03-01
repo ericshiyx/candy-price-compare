@@ -473,37 +473,50 @@ router.post('/scrape', async (req, res) => {
 
     // Extract domain from URL
     const domain = new URL(url).hostname;
+    console.log('Domain:', domain);
 
     // Make request to the URL
     const response = await axios.get(url);
     const $ = cheerio.load(response.data);
-
+    
     let price = '';
     let imageUrl = '';
 
     // Different scraping logic based on domain
     if (domain.includes('candyville.ca')) {
-      price = $('.price .money').first().text().replace(/[^0-9.]/g, '');
+      // Update selectors based on actual HTML structure
+      price = $('.price .money').first().text().trim().replace(/[^0-9.]/g, '');
       imageUrl = $('.product__media img').first().attr('src');
       if (imageUrl && imageUrl.startsWith('//')) {
         imageUrl = 'https:' + imageUrl;
       }
+      console.log('Candyville price:', price, 'image:', imageUrl);
     } else if (domain.includes('candynow.ca')) {
-      price = $('.price-item--regular').first().text().replace(/[^0-9.]/g, '');
+      // Update selectors based on actual HTML structure
+      price = $('.price-item--regular').first().text().trim().replace(/[^0-9.]/g, '');
       imageUrl = $('.product__media-item img').first().attr('src');
       if (imageUrl && imageUrl.startsWith('//')) {
         imageUrl = 'https:' + imageUrl;
       }
+      console.log('Candynow price:', price, 'image:', imageUrl);
     }
 
-    res.json({
+    // Send back the scraped data
+    const result = {
       price: parseFloat(price) || 0,
       domain,
-      imageUrl
-    });
+      imageUrl: imageUrl || ''
+    };
+    console.log('Sending back:', result);
+    res.json(result);
+
   } catch (error) {
     console.error('Scraping error:', error);
-    res.status(500).json({ message: 'Error scraping URL', error: error.message });
+    res.status(500).json({ 
+      message: 'Error scraping URL', 
+      error: error.message,
+      url: req.body.url 
+    });
   }
 });
 
