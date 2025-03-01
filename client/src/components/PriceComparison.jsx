@@ -36,9 +36,7 @@ const PriceComparison = () => {
   const handleDelete = async (id) => {
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/api/products/${id}`);
-      // After successful deletion, fetch the updated list
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
-      setProducts(response.data);
+      setProducts(products.filter(product => product._id !== id));
     } catch (error) {
       console.error('Error deleting product:', error);
     }
