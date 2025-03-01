@@ -11,7 +11,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:3000',  // Local development
-    'https://candycompare.netlify.app/'  // Your Netlify domain
+    'https://candycompare.netlify.app'  // Your Netlify domain
   ],
   credentials: true
 }));
