@@ -25,24 +25,29 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Log the data being sent
-    console.log('Sending data:', formData);
+    // Create the data object we're sending
+    const productData = {
+      name: formData.name,
+      vendor1Url: formData.vendor1Url,
+      vendor2Url: formData.vendor2Url,
+      vendor1Price: parseFloat(formData.vendor1Price) || 0,
+      vendor2Price: parseFloat(formData.vendor2Price) || 0,
+      vendor1Domain: formData.vendor1Domain || '',
+      vendor2Domain: formData.vendor2Domain || '',
+      imageUrl: formData.imageUrl || ''
+    };
+
+    // Debug log
+    console.log('Attempting to send product data:', productData);
     
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products`, {
-        name: formData.name,
-        vendor1Url: formData.vendor1Url,
-        vendor2Url: formData.vendor2Url,
-        vendor1Price: parseFloat(formData.vendor1Price) || 0,
-        vendor2Price: parseFloat(formData.vendor2Price) || 0,
-        vendor1Domain: formData.vendor1Domain,
-        vendor2Domain: formData.vendor2Domain,
-        imageUrl: formData.imageUrl
-      });
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products`, productData);
+      console.log('Server response:', response.data);
       
-      console.log('Product added:', response.data);
-      const responseData = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
-      onProductAdded(responseData.data);
+      if (onProductAdded) {
+        onProductAdded(response.data);
+      }
+      
       // Reset form
       setFormData({
         name: '',
@@ -55,7 +60,12 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
         vendor2Domain: ''
       });
     } catch (error) {
-      console.error('Error adding product:', error.response?.data || error.message);
+      // More detailed error logging
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        data: error.response?.data
+      });
     }
   };
 

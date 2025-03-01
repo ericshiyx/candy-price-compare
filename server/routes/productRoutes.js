@@ -21,25 +21,39 @@ router.get('/', async (req, res) => {
 // Add a new product
 router.post('/', async (req, res) => {
   try {
-    // Log the received data
-    console.log('Received data:', req.body);
-    
+    // Log received data
+    console.log('Server received data:', req.body);
+
+    // Validate required fields
+    if (!req.body.name) {
+      return res.status(400).json({ message: 'Product name is required' });
+    }
+
+    if (!req.body.vendor1Url || !req.body.vendor2Url) {
+      return res.status(400).json({ message: 'Both vendor URLs are required' });
+    }
+
     const product = new Product({
       name: req.body.name,
       vendor1Url: req.body.vendor1Url,
       vendor2Url: req.body.vendor2Url,
-      vendor1Price: req.body.vendor1Price,
-      vendor2Price: req.body.vendor2Price,
-      vendor1Domain: req.body.vendor1Domain,
-      vendor2Domain: req.body.vendor2Domain,
-      imageUrl: req.body.imageUrl
+      vendor1Price: req.body.vendor1Price || 0,
+      vendor2Price: req.body.vendor2Price || 0,
+      vendor1Domain: req.body.vendor1Domain || '',
+      vendor2Domain: req.body.vendor2Domain || '',
+      imageUrl: req.body.imageUrl || '',
+      sequence: 0  // Add default sequence
     });
-    
-    await product.save();
-    res.status(201).json(product);
+
+    const savedProduct = await product.save();
+    console.log('Product saved:', savedProduct);
+    res.status(201).json(savedProduct);
   } catch (error) {
     console.error('Server error:', error);
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ 
+      message: error.message,
+      details: error.errors // Include mongoose validation errors if any
+    });
   }
 });
 
