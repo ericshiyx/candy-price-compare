@@ -11,7 +11,7 @@ const productSchema = new mongoose.Schema({
     },
     vendor1Domain: {
         type: String,
-        required: true
+        default: ''
     },
     vendor2Url: {
         type: String,
@@ -19,7 +19,7 @@ const productSchema = new mongoose.Schema({
     },
     vendor2Domain: {
         type: String,
-        required: true
+        default: ''
     },
     vendor1Price: {
         type: Number,
