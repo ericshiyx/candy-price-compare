@@ -22,7 +22,7 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
     }
     setLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/products/compare-price', {
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products/compare-price`, {
         name: productName,
         vendor1Url,
         vendor2Url
@@ -30,21 +30,18 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
       setProductName('');
       setVendor1Url('');
       setVendor2Url('');
-      const response = await axios.get('http://localhost:5000/api/products');
-      onProductAdded(response.data);
+      const responseData = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
+      onProductAdded(responseData.data);
     } catch (error) {
       console.error('Error adding product:', error);
     }
     setLoading(false);
   };
 
-  const handleRefresh = async () => {
-    console.log('Refresh button clicked');
-    setRefreshing(true);
+  const handleRefreshPrices = async () => {
     try {
-      console.log('Making request to refresh prices...');
-      const response = await axios.post('http://localhost:5000/api/products/refresh-prices');
-      console.log('Got response from server:', response.data);
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products/refresh-prices`);
+      console.log('Prices refreshed:', response.data);
       if (onRefreshList && typeof onRefreshList === 'function') {
         console.log('Calling onRefreshList with updated data');
         onRefreshList(response.data);
@@ -55,11 +52,28 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
     } catch (error) {
       console.error('Error refreshing prices:', error);
     }
-    setRefreshing(false);
     console.log('Refresh completed');
   };
 
-  
+  const handleUrlChange = async (e, vendor) => {
+    const url = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      [`${vendor}Url`]: url
+    }));
+
+    if (url) {
+      try {
+        const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products/scrape`, {
+          url: url
+        });
+        // ... rest of the code ...
+      } catch (error) {
+        console.error('Error scraping URL:', error);
+      }
+    }
+  };
+
   return (
     <Paper sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" gutterBottom fontWeight="bold">
@@ -105,7 +119,7 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
           <Button
             variant="contained"
             type="button"
-            onClick={handleRefresh}
+            onClick={handleRefreshPrices}
             sx={{ mt: 2, ml: 2 }}
             disabled={refreshing}
           >
