@@ -15,26 +15,48 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
     vendor2Url: '',
     vendor1Price: '',
     vendor2Price: '',
-    imageUrl: ''
+    imageUrl: '',
+    vendor1Domain: '',
+    vendor2Domain: ''
   });
   const [loading, setLoading] = useState(false);
   const [refreshing] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.vendor1Url || !formData.vendor2Url) {
-      return;
-    }
-    setLoading(true);
+    
+    // Log the data being sent
+    console.log('Sending data:', formData);
+    
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products`, formData);
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products`, {
+        name: formData.name,
+        vendor1Url: formData.vendor1Url,
+        vendor2Url: formData.vendor2Url,
+        vendor1Price: parseFloat(formData.vendor1Price) || 0,
+        vendor2Price: parseFloat(formData.vendor2Price) || 0,
+        vendor1Domain: formData.vendor1Domain,
+        vendor2Domain: formData.vendor2Domain,
+        imageUrl: formData.imageUrl
+      });
+      
       console.log('Product added:', response.data);
       const responseData = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
       onProductAdded(responseData.data);
+      // Reset form
+      setFormData({
+        name: '',
+        vendor1Url: '',
+        vendor2Url: '',
+        vendor1Price: '',
+        vendor2Price: '',
+        imageUrl: '',
+        vendor1Domain: '',
+        vendor2Domain: ''
+      });
     } catch (error) {
-      console.error('Error adding product:', error);
+      console.error('Error adding product:', error.response?.data || error.message);
     }
-    setLoading(false);
   };
 
   const handleRefreshPrices = async () => {

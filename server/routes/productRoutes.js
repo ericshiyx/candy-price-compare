@@ -21,43 +21,25 @@ router.get('/', async (req, res) => {
 // Add a new product
 router.post('/', async (req, res) => {
   try {
-    // Get the highest sequence number
-    const lastProduct = await Product.findOne().sort({ sequence: -1 });
-    const nextSequence = lastProduct ? lastProduct.sequence + 1 : 0;
+    // Log the received data
+    console.log('Received data:', req.body);
     
     const product = new Product({
-      ...req.body,
-      sequence: nextSequence
+      name: req.body.name,
+      vendor1Url: req.body.vendor1Url,
+      vendor2Url: req.body.vendor2Url,
+      vendor1Price: req.body.vendor1Price,
+      vendor2Price: req.body.vendor2Price,
+      vendor1Domain: req.body.vendor1Domain,
+      vendor2Domain: req.body.vendor2Domain,
+      imageUrl: req.body.imageUrl
     });
-
-    // Scrape prices
-    const [vendor1Price, vendor2Price] = await Promise.all([
-      vendor1Scraper.scrapePrice(product.vendor1Url),
-      vendor2Scraper.scrapePrice(product.vendor2Url)
-    ]);
-
-    // Only set prices if they were successfully scraped
-    if (vendor1Price !== null) {
-      product.vendor1Price = vendor1Price;
-    }
-    if (vendor2Price !== null) {
-      product.vendor2Price = vendor2Price;
-    }
-
-    // Only add price history if at least one price was found
-    if (vendor1Price !== null || vendor2Price !== null) {
-      product.priceHistory.push({
-        vendor1Price: vendor1Price || undefined,
-        vendor2Price: vendor2Price || undefined,
-        date: new Date()
-      });
-    }
-
-    const newProduct = await product.save();
-    res.status(201).json(newProduct);
+    
+    await product.save();
+    res.status(201).json(product);
   } catch (error) {
-    console.error('Error adding product:', error);
-    res.status(400).json({ message: 'Error creating product' });
+    console.error('Server error:', error);
+    res.status(400).json({ message: error.message });
   }
 });
 
