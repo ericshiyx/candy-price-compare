@@ -19,8 +19,6 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
     vendor1Domain: '',
     vendor2Domain: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [refreshing] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -148,18 +146,16 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
             variant="contained"
             type="submit"
             sx={{ mt: 2 }}
-            disabled={loading}
           >
-            {loading ? 'ADDING...' : 'ADD PRODUCT'}
+            ADD PRODUCT
           </Button>         
           <Button
             variant="contained"
             type="button"
             onClick={handleRefreshPrices}
             sx={{ mt: 2, ml: 2 }}
-            disabled={refreshing}
           >
-            {refreshing ? 'REFRESHING...' : 'REFRESH LIST'}
+            REFRESH LIST
           </Button>
         </div>
       </Box>
