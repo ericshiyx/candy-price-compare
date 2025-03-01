@@ -3,6 +3,8 @@ const router = express.Router();
 const Product = require('../models/Product');
 const puppeteer = require('puppeteer');
 const memoryService = require('../services/memoryService');
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 // Import both scrapers the same way
 const vendor1Scraper = require('../scrapers/vendor1Scraper');
@@ -460,6 +462,48 @@ router.post('/update-sequence', async (req, res) => {
   } catch (error) {
     console.error('Error updating sequence:', error);
     res.status(500).json({ message: 'Error updating sequence' });
+  }
+});
+
+// Add the scrape endpoint
+router.post('/scrape', async (req, res) => {
+  try {
+    const { url } = req.body;
+    console.log('Scraping URL:', url);
+
+    // Extract domain from URL
+    const domain = new URL(url).hostname;
+
+    // Make request to the URL
+    const response = await axios.get(url);
+    const $ = cheerio.load(response.data);
+
+    let price = '';
+    let imageUrl = '';
+
+    // Different scraping logic based on domain
+    if (domain.includes('candyville.ca')) {
+      price = $('.price .money').first().text().replace(/[^0-9.]/g, '');
+      imageUrl = $('.product__media img').first().attr('src');
+      if (imageUrl && imageUrl.startsWith('//')) {
+        imageUrl = 'https:' + imageUrl;
+      }
+    } else if (domain.includes('candynow.ca')) {
+      price = $('.price-item--regular').first().text().replace(/[^0-9.]/g, '');
+      imageUrl = $('.product__media-item img').first().attr('src');
+      if (imageUrl && imageUrl.startsWith('//')) {
+        imageUrl = 'https:' + imageUrl;
+      }
+    }
+
+    res.json({
+      price: parseFloat(price) || 0,
+      domain,
+      imageUrl
+    });
+  } catch (error) {
+    console.error('Scraping error:', error);
+    res.status(500).json({ message: 'Error scraping URL', error: error.message });
   }
 });
 
