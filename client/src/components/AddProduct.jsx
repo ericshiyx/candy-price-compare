@@ -18,7 +18,7 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
     imageUrl: ''
   });
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -77,7 +77,11 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
         const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products/scrape`, {
           url: url
         });
-        // ... rest of the code ...
+        setFormData(prev => ({
+          ...prev,
+          [`${vendor}Price`]: response.data.price,
+          [`${vendor}Domain`]: response.data.domain
+        }));
       } catch (error) {
         console.error('Error scraping URL:', error);
       }
