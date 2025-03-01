@@ -9,27 +9,37 @@ import {
 } from '@mui/material';
 
 const AddProduct = ({ onProductAdded, onRefreshList }) => {
-  const [productName, setProductName] = useState('');
-  const [vendor1Url, setVendor1Url] = useState('');
-  const [vendor2Url, setVendor2Url] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    vendor1Url: '',
+    vendor2Url: '',
+    vendor1Price: '',
+    vendor2Price: '',
+    imageUrl: ''
+  });
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!productName || !vendor1Url || !vendor2Url) {
+    if (!formData.name || !formData.vendor1Url || !formData.vendor2Url) {
       return;
     }
     setLoading(true);
     try {
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products/compare-price`, {
-        name: productName,
-        vendor1Url,
-        vendor2Url
+        name: formData.name,
+        vendor1Url: formData.vendor1Url,
+        vendor2Url: formData.vendor2Url
       });
-      setProductName('');
-      setVendor1Url('');
-      setVendor2Url('');
+      setFormData({
+        name: '',
+        vendor1Url: '',
+        vendor2Url: '',
+        vendor1Price: '',
+        vendor2Price: '',
+        imageUrl: ''
+      });
       const responseData = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
       onProductAdded(responseData.data);
     } catch (error) {
@@ -83,8 +93,8 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
         <TextField
           fullWidth
           label="Product Name"
-          value={productName}
-          onChange={(e) => setProductName(e.target.value)}
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           margin="normal"
           required
           name="productName"
@@ -92,8 +102,8 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
         <TextField
           fullWidth
           label="Vendor 1 URL"
-          value={vendor1Url}
-          onChange={(e) => setVendor1Url(e.target.value)}
+          value={formData.vendor1Url}
+          onChange={(e) => handleUrlChange(e, 'vendor1')}
           margin="normal"
           required
           name="vendor1Url"
@@ -101,8 +111,8 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
         <TextField
           fullWidth
           label="Vendor 2 URL"
-          value={vendor2Url}
-          onChange={(e) => setVendor2Url(e.target.value)}
+          value={formData.vendor2Url}
+          onChange={(e) => handleUrlChange(e, 'vendor2')}
           margin="normal"
           required
           name="vendor2Url"
