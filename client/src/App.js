@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Typography } from '@mui/material';
+import { Container } from '@mui/material';
 import PriceComparison from './components/PriceComparison';
 import AddProduct from './components/AddProduct';
 
@@ -10,10 +10,7 @@ function App() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Candy Store Price Comparison
-      </Typography>
+    <Container maxWidth="lg" sx={{ py: 4 }}>      
       <AddProduct onProductAdded={handleProductAdded} />
       <PriceComparison />
     </Container>

@@ -9,55 +9,88 @@ import {
   TableRow, 
   Paper,
   Typography,
-  IconButton
+  IconButton,
+  Stack,
+  Snackbar,
+  Alert
 } from '@mui/material';
-import { ArrowUpward, ArrowDownward, Delete } from '@mui/icons-material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 const PriceComparison = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showError, setShowError] = useState(false);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
-        const sortedProducts = response.data.sort((a, b) => a.sequence - b.sequence);
-        setProducts(sortedProducts);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching products:', error);
-        setLoading(false);
-      }
-    };
-
     fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
+      // Sort products by sequencenum if it exists
+      const sortedProducts = response.data.sort((a, b) => (a.sequencenum || 0) - (b.sequencenum || 0));
+      setProducts(sortedProducts);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setError('Error loading products');
+      setShowError(true);
+      setLoading(false);
+    }
+  };
 
   const handleDelete = async (id) => {
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/api/products/${id}`);
-      setProducts(products.filter(product => product._id !== id));
+      // After successful deletion, fetch the updated list
+      await fetchProducts();
     } catch (error) {
       console.error('Error deleting product:', error);
+      setError('Error deleting product');
+      setShowError(true);
     }
   };
 
   const moveItem = async (index, direction) => {
-    const newProducts = [...products];
-    if (direction === 'up' && index > 0) {
-      [newProducts[index], newProducts[index - 1]] = [newProducts[index - 1], newProducts[index]];
-    } else if (direction === 'down' && index < products.length - 1) {
-      [newProducts[index], newProducts[index + 1]] = [newProducts[index + 1], newProducts[index]];
-    }
-    setProducts(newProducts);
-
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products/update-sequence`, {
-        products: newProducts
-      });
-      setProducts(response.data);
+      const newProducts = [...products];
+      let targetIndex;
+
+      if (direction === 'up' && index > 0) {
+        targetIndex = index - 1;
+      } else if (direction === 'down' && index < products.length - 1) {
+        targetIndex = index + 1;
+      } else {
+        return; // Invalid move
+      }
+
+      // Swap items in the local state first for immediate feedback
+      [newProducts[index], newProducts[targetIndex]] = [newProducts[targetIndex], newProducts[index]];
+      
+      // Update the local state immediately
+      setProducts(newProducts);
+
+      // Prepare the reorder request
+      const reorderData = {
+        productId: products[index]._id,
+        direction: direction
+      };
+
+      // Send the reorder request to the server
+      await axios.post(`${process.env.REACT_APP_API_URL}/api/products/reorder`, reorderData);
+      
+      // Fetch the updated list to ensure we're in sync with the server
+      await fetchProducts();
     } catch (error) {
-      console.error('Error updating sequence:', error);
+      console.error('Error moving item:', error);
+      setError('Error reordering items');
+      setShowError(true);
+      // Revert to the original order by fetching again
+      await fetchProducts();
     }
   };
 
@@ -66,11 +99,11 @@ const PriceComparison = () => {
   return (
     <div className="container">
       <h1 style={{ 
-        fontWeight: 'bold',  // or you can use numbers: 700
-        fontSize: '2rem',    // make it bigger if needed
-        marginBottom: '20px' // add some spacing below
+        fontWeight: 'bold',
+        fontSize: '2rem',
+        marginBottom: '20px'
       }}>
-        Candy Price Comparison
+        Price Comparison
       </h1>
       <TableContainer component={Paper}>
         <Table>
@@ -116,21 +149,28 @@ const PriceComparison = () => {
                     ${savings.toFixed(2)}
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton 
-                      onClick={() => moveItem(index, 'up')} 
-                      disabled={index === 0}
-                    >
-                      <ArrowUpward />
-                    </IconButton>
-                    <IconButton 
-                      onClick={() => moveItem(index, 'down')} 
-                      disabled={index === products.length - 1}
-                    >
-                      <ArrowDownward />
-                    </IconButton>
-                    <IconButton onClick={() => handleDelete(product._id)}>
-                      <Delete />
-                    </IconButton>
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <IconButton 
+                        onClick={() => moveItem(index, 'up')}
+                        disabled={index === 0}
+                        size="small"
+                      >
+                        <ArrowUpwardIcon />
+                      </IconButton>
+                      <IconButton 
+                        onClick={() => moveItem(index, 'down')}
+                        disabled={index === products.length - 1}
+                        size="small"
+                      >
+                        <ArrowDownwardIcon />
+                      </IconButton>
+                      <IconButton 
+                        onClick={() => handleDelete(product._id)}
+                        size="small"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               );
@@ -138,6 +178,15 @@ const PriceComparison = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      <Snackbar
+        open={showError}
+        autoHideDuration={6000}
+        onClose={() => setShowError(false)}
+      >
+        <Alert onClose={() => setShowError(false)} severity="error">
+          {error}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
