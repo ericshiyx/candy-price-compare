@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -8,7 +9,11 @@ const productRoutes = require('./routes/productRoutes');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://candycompare.netlify.app']
+    : ['http://localhost:3000']
+}));
 app.use(express.json());
 
 // Log all requests
@@ -31,8 +36,8 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something broke!');
 });
 
-app.listen(config.PORT, () => {
-  console.log(`Server is running on port ${config.PORT}`);
+app.listen(config.port, () => {
+  console.log(`Server running on port ${config.port}`);
   console.log('Available routes:');
   console.log('  GET  /api/products');
   console.log('  POST /api/compare-price');

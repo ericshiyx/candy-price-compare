@@ -13,48 +13,56 @@ const vendor2Scraper = require('../scrapers/vendor2Scraper');
 // Get all products
 router.get('/', async (req, res) => {
   try {
-    const products = await Product.find().sort({ sequence: 1 });
+    const products = await Product.find();
     res.json(products);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching products' });
+    res.status(500).json({ message: error.message });
   }
 });
 
 // Add a new product
 router.post('/', async (req, res) => {
   try {
-    // Log received data
-    console.log('Server received data:', req.body);
-
+    console.log('Received product data:', JSON.stringify(req.body, null, 2));
+    
     // Validate required fields
-    if (!req.body.name) {
-      return res.status(400).json({ message: 'Product name is required' });
+    const requiredFields = ['name', 'vendor1Url', 'vendor2Url', 'vendor1Domain', 'vendor2Domain'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      console.error('Missing required fields:', missingFields);
+      return res.status(400).json({ 
+        message: 'Missing required fields', 
+        missingFields 
+      });
     }
-
-    if (!req.body.vendor1Url || !req.body.vendor2Url) {
-      return res.status(400).json({ message: 'Both vendor URLs are required' });
-    }
-
+    
     const product = new Product({
       name: req.body.name,
       vendor1Url: req.body.vendor1Url,
       vendor2Url: req.body.vendor2Url,
-      vendor1Price: req.body.vendor1Price || 0,
-      vendor2Price: req.body.vendor2Price || 0,
+      vendor1Price: parseFloat(req.body.vendor1Price) || 0,
+      vendor2Price: parseFloat(req.body.vendor2Price) || 0,
       vendor1Domain: req.body.vendor1Domain || '',
       vendor2Domain: req.body.vendor2Domain || '',
-      imageUrl: req.body.imageUrl || '',
-      sequence: 0  // Add default sequence
+      imageUrl: req.body.imageUrl || ''
     });
 
+    console.log('Attempting to save product:', JSON.stringify(product, null, 2));
     const savedProduct = await product.save();
-    console.log('Product saved:', savedProduct);
+    console.log('Successfully saved product:', JSON.stringify(savedProduct, null, 2));
+    
     res.status(201).json(savedProduct);
   } catch (error) {
-    console.error('Server error:', error);
+    console.error('Error creating product:', error);
+    console.error('Validation errors:', error.errors);
     res.status(400).json({ 
       message: error.message,
-      details: error.errors // Include mongoose validation errors if any
+      details: error.errors,
+      validationErrors: Object.keys(error.errors || {}).reduce((acc, key) => {
+        acc[key] = error.errors[key].message;
+        return acc;
+      }, {})
     });
   }
 });
@@ -230,293 +238,126 @@ router.post('/refresh-prices', async (req, res) => {
     }
 });
 
-/* router.post('/auto-compare', async (req, res) => {
-    try {
-        // Launch browser for scraping
-        const browser = await puppeteer.launch({
-            headless: "new",
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-
-        // Scrape Vendor 1 products
-        console.log('Scraping Vendor 1 products...');
-        const vendor1Products = await scrapeVendor1Products(browser);
-        memoryService.saveVendor1Products(vendor1Products);
-
-        // Scrape Vendor 2 products
-        console.log('Scraping Vendor 2 products...');
-        const vendor2Products = await scrapeVendor2Products(browser);
-        memoryService.saveVendor2Products(vendor2Products);
-
-        // Find matching products
-        const matches = await findMatchingProducts(vendor1Products, vendor2Products);
-        console.log(`Found ${matches.length} matching products`);
-
-        // Save matches to MongoDB
-        for (const match of matches) {
-            const product = new Product({
-                name: match.name,
-                vendor1Url: match.vendor1Url,
-                vendor1Domain: extractDomain(match.vendor1Url),
-                vendor2Url: match.vendor2Url,
-                vendor2Domain: extractDomain(match.vendor2Url),
-                vendor1Price: match.vendor1Price,
-                vendor2Price: match.vendor2Price,
-                imageUrl: match.imageUrl,
-                timestamp: new Date()
-            });
-            await product.save();
-        }
-
-        // Clean up
-        memoryService.clearProducts();
-        await browser.close();
-
-        // Return updated product list
-        const allProducts = await Product.find().sort({ timestamp: -1 });
-        res.json(allProducts);
-    } catch (error) {
-        console.error('Error in auto-compare:', error);
-        res.status(500).json({ error: error.message });
-    }
-}); */
-
-/* async function scrapeVendor1Products(browser) {
-    const page = await browser.newPage();
-    
-    try {
-        console.log('Starting to scrape Candyville.ca...');
-        
-        await page.setDefaultNavigationTimeout(60000);
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-        
-        console.log('Navigating to Candyville.ca shop page...');
-        await page.goto('https://candyville.ca/', {
-            waitUntil: 'networkidle0'
-        });
-
-        // Close any popups that might appear
-        try {
-            await page.waitForSelector('.scappfancybox-close', { timeout: 5000 });
-            await page.click('.scappfancybox-close');
-        } catch (e) {
-            console.log('No popup found or unable to close');
-        }
-
-        console.log('Waiting for products to load...');
-        await page.waitForSelector('.grid.grid--uniform.grid--view-items', { timeout: 30000 });
-
-        const products = await page.evaluate(() => {
-            const items = document.querySelectorAll('.grid.grid--uniform.grid--view-items .grid__item');
-            return Array.from(items).map(item => {
-                const titleElement = item.querySelector('.grid-view-item__title');
-                const priceElement = item.querySelector('.price-item.price-item--regular');
-                const imageElement = item.querySelector('.grid-view-item__image');
-                
-                return {
-                    title: titleElement ? titleElement.textContent.trim() : '',
-                    price: priceElement ? priceElement.textContent.trim() : '',
-                    image: imageElement ? imageElement.src : '',
-                    vendor: 'Candyville'
-                };
-            });
-        });
-
-        console.log(`Found ${products.length} products on Candyville`);
-        return products;
-
-    } catch (error) {
-        console.error('Error scraping Candyville:', error);
-        // Take a screenshot and save HTML if there's an error
-        try {
-            await page.screenshot({ path: 'error-candyville.png', fullPage: true });
-            const html = await page.content();
-            require('fs').writeFileSync('error-candyville.html', html);
-            console.log('Debug files saved: error-candyville.png and error-candyville.html');
-        } catch (e) {
-            console.error('Error saving debug files:', e);
-        }
-        return [];
-    } finally {
-        await page.close();
-    }
-} */
-
-/* async function autoScroll(page) {
-    console.log('Starting auto-scroll...');
-    await page.evaluate(async () => {
-        await new Promise((resolve) => {
-            let totalHeight = 0;
-            const distance = 100;
-            const timer = setInterval(() => {
-                const scrollHeight = document.documentElement.scrollHeight;
-                window.scrollBy(0, distance);
-                totalHeight += distance;
-
-                if (totalHeight >= scrollHeight) {
-                    clearInterval(timer);
-                    resolve();
-                }
-            }, 100);
-        });
-    });
-    console.log('Finished auto-scroll');
-} */
-
-/* async function scrapeVendor2Products(browser) {
-    // Similar implementation for Vendor 2
-    // Adjust selectors based on Vendor 2's website structure
-} */
-
-/* async function findMatchingProducts(vendor1Products, vendor2Products) {
-    const matches = [];
-    
-    for (const v1Product of vendor1Products) {
-        // Use fuzzy matching for product names
-        const v2Product = vendor2Products.find(v2 => {
-            const similarity = calculateSimilarity(v1Product.name, v2.name);
-            return similarity > 0.8; // 80% similarity threshold
-        });
-        
-        if (v2Product) {
-            matches.push({
-                name: v1Product.name,
-                vendor1Url: v1Product.url,
-                vendor2Url: v2Product.url,
-                vendor1Price: v1Product.price,
-                vendor2Price: v2Product.price,
-                imageUrl: v1Product.imageUrl
-            });
-        }
-    }
-    
-    return matches;
-} */
-
-/* function calculateSimilarity(str1, str2) {
-    // Simple string similarity implementation
-    const s1 = str1.toLowerCase();
-    const s2 = str2.toLowerCase();
-    const words1 = new Set(s1.split(/\W+/));
-    const words2 = new Set(s2.split(/\W+/));
-    const intersection = new Set([...words1].filter(x => words2.has(x)));
-    const union = new Set([...words1, ...words2]);
-    return intersection.size / union.size;
-} */
-
-// Update the product scraping logic
-/* async function scrapeCandyville() {
-  console.log("Starting to scrape Candyville.ca...");
-  console.log("Navigating to Candyville.ca shop page...");
-  
-  const products = [];
-  
-  try {
-    // Look for product cards with class 'grid__item'
-    const productElements = document.querySelectorAll('.grid__item');
-    
-    productElements.forEach(element => {
-      // Extract product info
-      const titleElement = element.querySelector('.product-title');
-      const priceElement = element.querySelector('.product-price');
-      const imageElement = element.querySelector('img');
-      
-      if (titleElement && priceElement) {
-        const product = {
-          title: titleElement.textContent.trim(),
-          price: priceElement.textContent.trim().replace(/[^0-9.]/g, ''),
-          image: imageElement ? imageElement.src : '',
-          vendor: 'Candyville'
-        };
-        products.push(product);
-      }
-    });
-
-    console.log(`Found ${products.length} products`);
-    return products;
-
-  } catch (error) {
-    console.error("Error scraping Candyville:", error);
-    return [];
-  }
-} */
-
-router.post('/update-sequence', async (req, res) => {
-  try {
-    const { products } = req.body;
-    
-    // Update each product's sequence in the database
-    const updatePromises = products.map((product, index) => {
-      return Product.findByIdAndUpdate(
-        product._id,
-        { $set: { sequence: index } },
-        { new: true }
-      );
-    });
-    
-    await Promise.all(updatePromises);
-    
-    // Fetch and return the updated products
-    const updatedProducts = await Product.find().sort({ sequence: 1 });
-    res.json(updatedProducts);
-  } catch (error) {
-    console.error('Error updating sequence:', error);
-    res.status(500).json({ message: 'Error updating sequence' });
-  }
-});
-
-// Add the scrape endpoint
+// Update the scrape endpoint to use the same scrapers as refresh
 router.post('/scrape', async (req, res) => {
+  let browser = null;
   try {
     const { url } = req.body;
     console.log('Scraping URL:', url);
-
-    // Extract domain from URL
-    const domain = new URL(url).hostname;
-    console.log('Domain:', domain);
-
-    // Make request to the URL
-    const response = await axios.get(url);
-    const $ = cheerio.load(response.data);
     
-    let price = '';
+    // Always extract domain, even if scraping fails
+    const domain = new URL(url).hostname;
+    let price = 0;
     let imageUrl = '';
 
-    // Different scraping logic based on domain
-    if (domain.includes('candyville.ca')) {
-      // Update selectors based on actual HTML structure
-      price = $('.price .money').first().text().trim().replace(/[^0-9.]/g, '');
-      imageUrl = $('.product__media img').first().attr('src');
-      if (imageUrl && imageUrl.startsWith('//')) {
-        imageUrl = 'https:' + imageUrl;
+    try {
+      // Use the same scrapers that work in the refresh function
+      if (domain.includes('candyville.ca')) {
+        price = await vendor1Scraper.scrapePrice(url);
+        // Get image using puppeteer
+        browser = await puppeteer.launch({
+          headless: "new",
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        const page = await browser.newPage();
+        await page.goto(url);
+        imageUrl = await scrapeImage(page);
+      } else if (domain.includes('candynow.ca')) {
+        price = await vendor2Scraper.scrapePrice(url);
+        // Get image using puppeteer
+        browser = await puppeteer.launch({
+          headless: "new",
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        const page = await browser.newPage();
+        await page.goto(url);
+        imageUrl = await scrapeImage(page);
       }
-      console.log('Candyville price:', price, 'image:', imageUrl);
-    } else if (domain.includes('candynow.ca')) {
-      // Update selectors based on actual HTML structure
-      price = $('.price-item--regular').first().text().trim().replace(/[^0-9.]/g, '');
-      imageUrl = $('.product__media-item img').first().attr('src');
-      if (imageUrl && imageUrl.startsWith('//')) {
-        imageUrl = 'https:' + imageUrl;
-      }
-      console.log('Candynow price:', price, 'image:', imageUrl);
+    } catch (scrapeError) {
+      console.error('Error during scraping:', scrapeError);
+      // Don't throw the error, just log it and continue with default values
     }
 
-    // Send back the scraped data
     const result = {
       price: parseFloat(price) || 0,
       domain,
       imageUrl: imageUrl || ''
     };
+    
     console.log('Sending back:', result);
     res.json(result);
 
   } catch (error) {
-    console.error('Scraping error:', error);
-    res.status(500).json({ 
-      message: 'Error scraping URL', 
-      error: error.message,
-      url: req.body.url 
-    });
+    console.error('Error processing scrape request:', error);
+    // If we can still get the domain, send it back
+    try {
+      const domain = new URL(req.body.url).hostname;
+      res.json({
+        price: 0,
+        domain,
+        imageUrl: '',
+        error: error.message
+      });
+    } catch (domainError) {
+      res.status(400).json({ 
+        error: 'Invalid URL',
+        details: error.message 
+      });
+    }
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+});
+
+// Reorder a product
+router.post('/reorder', async (req, res) => {
+  try {
+    const { productId, direction } = req.body;
+
+    // Find the product to move
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Find the adjacent product based on direction
+    let adjacentProduct;
+    if (direction === 'up') {
+      adjacentProduct = await Product.findOne(
+        { sequencenum: { $lt: product.sequencenum } },
+        null,
+        { sort: { sequencenum: -1 } }
+      );
+    } else if (direction === 'down') {
+      adjacentProduct = await Product.findOne(
+        { sequencenum: { $gt: product.sequencenum } },
+        null,
+        { sort: { sequencenum: 1 } }
+      );
+    }
+
+    if (!adjacentProduct) {
+      return res.status(400).json({ message: 'Cannot move product in that direction' });
+    }
+
+    // Swap sequence numbers
+    const tempSeq = product.sequencenum;
+    product.sequencenum = adjacentProduct.sequencenum;
+    adjacentProduct.sequencenum = tempSeq;
+
+    // Save both products
+    await Promise.all([
+      product.save(),
+      adjacentProduct.save()
+    ]);
+
+    // Return success
+    res.json({ message: 'Product reordered successfully' });
+  } catch (error) {
+    console.error('Error reordering product:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 

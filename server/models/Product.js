@@ -11,7 +11,7 @@ const productSchema = new mongoose.Schema({
     },
     vendor1Domain: {
         type: String,
-        default: ''
+        required: true
     },
     vendor2Url: {
         type: String,
@@ -19,7 +19,7 @@ const productSchema = new mongoose.Schema({
     },
     vendor2Domain: {
         type: String,
-        default: ''
+        required: true
     },
     vendor1Price: {
         type: Number,
@@ -33,7 +33,7 @@ const productSchema = new mongoose.Schema({
         type: String,
         default: null
     },
-    sequence: {
+    sequencenum: {
         type: Number,
         default: 0
     },
@@ -42,5 +42,19 @@ const productSchema = new mongoose.Schema({
         default: Date.now
     }
 }, { timestamps: true });
+
+// Add a pre-save hook to set sequencenum for new products
+productSchema.pre('save', async function(next) {
+    if (this.isNew) {
+        try {
+            const lastProduct = await this.constructor.findOne({}, {}, { sort: { 'sequencenum': -1 } });
+            this.sequencenum = lastProduct ? lastProduct.sequencenum + 1 : 0;
+        } catch (error) {
+            console.error('Error setting sequence number:', error);
+            this.sequencenum = 0;
+        }
+    }
+    next();
+});
 
 module.exports = mongoose.model('Product', productSchema); 
