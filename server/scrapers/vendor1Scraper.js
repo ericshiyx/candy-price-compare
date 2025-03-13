@@ -1,65 +1,66 @@
-const puppeteer = require('puppeteer');
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 async function scrapePrice(url) {
-    let browser = null;
     try {
         console.log('Starting vendor1 price scraping for URL:', url);
-        browser = await puppeteer.launch({
-            headless: "new",
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--disable-gpu'
-            ]
-        });
-        console.log('Browser launched successfully');
         
-        const page = await browser.newPage();
-        console.log('New page created');
+        // Set headers to mimic a browser
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Connection': 'keep-alive',
+        };
+
+        const response = await axios.get(url, { headers });
+        console.log('Page fetched successfully');
         
-        // Set a user agent to avoid being blocked
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        const $ = cheerio.load(response.data);
         
-        await page.setDefaultNavigationTimeout(60000);
-        console.log('Navigating to URL...');
-        await page.goto(url, { waitUntil: 'networkidle0' });
-        console.log('Page loaded successfully');
-
-        // Wait for potential price elements to load
-        await page.waitForTimeout(5000);
-
-        // Try multiple selectors to find the price
-        const price = await page.evaluate(() => {
-            // Try meta tag first
-            const metaTag = document.querySelector('meta[itemprop="price"]');
-            if (metaTag) {
-                const price = parseFloat(metaTag.getAttribute('content'));
-                console.log('Price found in meta tag:', price);
-                return price;
-            }
-
-            // Try price class
-            const priceElement = document.querySelector('.price');
-            if (priceElement) {
-                const price = parseFloat(priceElement.textContent.replace(/[^0-9.]/g, ''));
+        // Try multiple selectors
+        let price = null;
+        
+        // Try meta tag
+        const metaPrice = $('meta[itemprop="price"]').attr('content');
+        if (metaPrice) {
+            price = parseFloat(metaPrice);
+            console.log('Price found in meta tag:', price);
+        }
+        
+        // Try price class
+        if (!price) {
+            const priceText = $('.price').text();
+            if (priceText) {
+                price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
                 console.log('Price found in price class:', price);
-                return price;
             }
-
-            // Try product price class
-            const productPrice = document.querySelector('.product__price');
+        }
+        
+        // Try product price class
+        if (!price) {
+            const productPrice = $('.product__price').text();
             if (productPrice) {
-                const price = parseFloat(productPrice.textContent.replace(/[^0-9.]/g, ''));
+                price = parseFloat(productPrice.replace(/[^0-9.]/g, ''));
                 console.log('Price found in product price class:', price);
-                return price;
             }
-
-            // Log the page content for debugging
-            console.log('Page content:', document.body.innerHTML);
-            return null;
-        });
+        }
+        
+        // Try JSON-LD data
+        if (!price) {
+            const jsonLd = $('script[type="application/ld+json"]').html();
+            if (jsonLd) {
+                try {
+                    const data = JSON.parse(jsonLd);
+                    if (data.offers && data.offers.price) {
+                        price = parseFloat(data.offers.price);
+                        console.log('Price found in JSON-LD:', price);
+                    }
+                } catch (e) {
+                    console.log('Error parsing JSON-LD:', e);
+                }
+            }
+        }
 
         console.log('Final price for vendor1:', price);
         return price;
@@ -67,11 +68,6 @@ async function scrapePrice(url) {
         console.error('Detailed error in vendor1 scraping:', error);
         console.error('Error stack:', error.stack);
         return null;
-    } finally {
-        if (browser) {
-            await browser.close();
-            console.log('Browser closed');
-        }
     }
 }
 
