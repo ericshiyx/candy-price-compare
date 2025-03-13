@@ -11,7 +11,7 @@ const app = express();
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://candycompare.netlify.app']
+    ? ['https://*.netlify.app']  // Allow any Netlify domain
     : ['http://localhost:3000']
 }));
 app.use(express.json());

@@ -152,7 +152,7 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
 
     setLoading(true);
     try {
-      // Ensure all required fields are present and properly formatted
+      // Create product data object
       const productData = {
         name: formData.name.trim(),
         vendor1Url: formData.vendor1Url.trim(),
@@ -164,6 +164,7 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
         imageUrl: formData.imageUrl || ''
       };
 
+      console.log('API URL:', process.env.REACT_APP_API_URL);
       console.log('Sending data:', productData);
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/products`, productData);
       console.log('Response:', response.data);
@@ -183,14 +184,17 @@ const AddProduct = ({ onProductAdded, onRefreshList }) => {
       setErrorMessage('');
       
       // Refresh product list
+      console.log('Fetching updated product list...');
       const responseData = await axios.get(`${process.env.REACT_APP_API_URL}/api/products`);
+      console.log('Updated product list:', responseData.data);
       onProductAdded(responseData.data);
     } catch (error) {
       console.error('Error details:', {
         message: error.message,
         response: error.response?.data,
         data: error.response?.data,
-        validationErrors: error.response?.data?.validationErrors
+        validationErrors: error.response?.data?.validationErrors,
+        config: error.config // This will show the full request configuration
       });
       
       // Handle validation errors
