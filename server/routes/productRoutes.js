@@ -238,9 +238,8 @@ router.post('/refresh-prices', async (req, res) => {
     }
 });
 
-// Update the scrape endpoint to use the same scrapers as refresh
+// Update the scrape endpoint to use axios and cheerio
 router.post('/scrape', async (req, res) => {
-  let browser = null;
   try {
     const { url } = req.body;
     console.log('Scraping URL:', url);
@@ -250,64 +249,49 @@ router.post('/scrape', async (req, res) => {
     let price = 0;
     let imageUrl = '';
 
-    try {
-      // Use the same scrapers that work in the refresh function
-      if (domain.includes('candyville.ca')) {
-        price = await vendor1Scraper.scrapePrice(url);
-        // Get image using puppeteer
-        browser = await puppeteer.launch({
-          headless: "new",
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-        const page = await browser.newPage();
-        await page.goto(url);
-        imageUrl = await scrapeImage(page);
-      } else if (domain.includes('candynow.ca')) {
-        price = await vendor2Scraper.scrapePrice(url);
-        // Get image using puppeteer
-        browser = await puppeteer.launch({
-          headless: "new",
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-        const page = await browser.newPage();
-        await page.goto(url);
-        imageUrl = await scrapeImage(page);
+    // Use axios to fetch the page
+    const response = await axios.get(url);
+    const $ = cheerio.load(response.data);
+
+    // Try to find price based on domain
+    if (domain.includes('candyville.ca')) {
+      price = await vendor1Scraper.scrapePrice(url);
+    } else if (domain.includes('candynow.ca')) {
+      price = await vendor2Scraper.scrapePrice(url);
+    }
+
+    // Try to find image
+    const imageSelectors = [
+      'meta[property="og:image"]',
+      'meta[name="twitter:image"]',
+      '.product-image img',
+      '.product__image img',
+      '#product-image img'
+    ];
+
+    for (const selector of imageSelectors) {
+      const element = $(selector);
+      if (element.length) {
+        if (element.is('meta')) {
+          imageUrl = element.attr('content');
+        } else {
+          imageUrl = element.attr('src');
+        }
+        if (imageUrl) break;
       }
-    } catch (scrapeError) {
-      console.error('Error during scraping:', scrapeError);
-      // Don't throw the error, just log it and continue with default values
     }
 
-    const result = {
-      price: parseFloat(price) || 0,
-      domain,
-      imageUrl: imageUrl || ''
-    };
-    
-    console.log('Sending back:', result);
-    res.json(result);
-
+    res.json({
+      price,
+      imageUrl,
+      domain
+    });
   } catch (error) {
-    console.error('Error processing scrape request:', error);
-    // If we can still get the domain, send it back
-    try {
-      const domain = new URL(req.body.url).hostname;
-      res.json({
-        price: 0,
-        domain,
-        imageUrl: '',
-        error: error.message
-      });
-    } catch (domainError) {
-      res.status(400).json({ 
-        error: 'Invalid URL',
-        details: error.message 
-      });
-    }
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
+    console.error('Error scraping:', error);
+    res.status(500).json({ 
+      error: error.message,
+      domain: new URL(url).hostname // Still return domain even if scraping fails
+    });
   }
 });
 
