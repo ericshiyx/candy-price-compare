@@ -11,8 +11,7 @@ async function scrapePrice(url) {
                 '--disable-dev-shm-usage',
                 '--disable-accelerated-2d-canvas',
                 '--disable-gpu'
-            ],
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null
+            ]
         });
         const page = await browser.newPage();
         await page.setDefaultNavigationTimeout(60000);
