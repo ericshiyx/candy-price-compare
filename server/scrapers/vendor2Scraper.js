@@ -19,21 +19,45 @@ async function scrapePrice(url) {
         const page = await browser.newPage();
         console.log('New page created');
         
+        // Set a user agent to avoid being blocked
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        
         await page.setDefaultNavigationTimeout(60000);
         console.log('Navigating to URL...');
         await page.goto(url, { waitUntil: 'networkidle0' });
         console.log('Page loaded successfully');
 
-        // Look for the meta tag with property="og:price:amount"
+        // Wait for potential price elements to load
+        await page.waitForTimeout(5000);
+
+        // Try multiple selectors to find the price
         const price = await page.evaluate(() => {
+            // Try meta tag first
             const metaTag = document.querySelector('meta[property="og:price:amount"]');
-            console.log('Meta tag found:', metaTag);
             if (metaTag) {
                 const price = parseFloat(metaTag.getAttribute('content'));
-                console.log('Price extracted:', price);
+                console.log('Price found in meta tag:', price);
                 return price;
             }
-            console.log('No price meta tag found');
+
+            // Try price class
+            const priceElement = document.querySelector('.price');
+            if (priceElement) {
+                const price = parseFloat(priceElement.textContent.replace(/[^0-9.]/g, ''));
+                console.log('Price found in price class:', price);
+                return price;
+            }
+
+            // Try product price class
+            const productPrice = document.querySelector('.product__price');
+            if (productPrice) {
+                const price = parseFloat(productPrice.textContent.replace(/[^0-9.]/g, ''));
+                console.log('Price found in product price class:', price);
+                return price;
+            }
+
+            // Log the page content for debugging
+            console.log('Page content:', document.body.innerHTML);
             return null;
         });
 
