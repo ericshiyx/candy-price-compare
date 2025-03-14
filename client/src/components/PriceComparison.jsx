@@ -12,21 +12,29 @@ import {
   IconButton,
   Stack,
   Snackbar,
-  Alert
+  Alert,
+  Button
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import { useNavigate } from 'react-router-dom';
 
 const PriceComparison = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showError, setShowError] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    navigate('/login');
+  };
 
   const fetchProducts = async () => {
     try {
@@ -98,13 +106,22 @@ const PriceComparison = () => {
 
   return (
     <div className="container">
-      <h1 style={{ 
-        fontWeight: 'bold',
-        fontSize: '2rem',
-        marginBottom: '20px'
-      }}>
-        Price Comparison
-      </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1 style={{ 
+          fontWeight: 'bold',
+          fontSize: '2rem',
+          margin: 0
+        }}>
+          Price Comparison
+        </h1>
+        <Button 
+          variant="outlined" 
+          color="error" 
+          onClick={handleLogout}
+        >
+          Logout
+        </Button>
+      </div>
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
